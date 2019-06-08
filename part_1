@@ -1,0 +1,82 @@
+: inc 1 + ;
+: abs dup 0 < if -1 * then ;
+: show . cr ;
+
+: even 2 % abs not ;
+
+: isPrime
+	abs
+	dup
+	2 = 
+	if
+		drop
+		1 
+	else
+		dup 
+		1 = 
+		if
+			drop
+			0
+		else
+			dup
+			2
+			for 
+				r@ % 0 = 
+				if 
+					0 
+				else 
+					1 
+				then
+			endfor 
+		then	
+	then 
+;
+: primeSave isPrime 8 allot dup rot swap ! ;
+( 5 primeSave @ .S )
+
+: concat
+	swap dup count >r over count r@ + 	( подсчет длины всей строки )
+	heap-alloc
+	dup rot string-copy 				( копируем в новое место 1 строку)
+	r> over >r +  						( смещение на длину 1й строки и сохр адрес строки )
+	swap string-copy 					( копируем вторую строку )
+	r> 									( адрес строки )
+;
+
+: isPrimary ( n -- 1 n or 0 n)
+	abs
+	1 swap
+	dup 
+	1 = 
+	if
+		drop
+		0
+	else
+		dup
+		2 = 
+		if 
+			drop
+			1
+		else
+			dup
+			2
+			for
+				dup
+				r@ % 0 =
+				if 
+					r@ isPrime
+					if
+						dup
+						r@ dup * % 0 =
+						if
+							0 rot land swap
+						then
+					else
+						0 rot land swap
+					then	
+				then
+			endfor
+			swap
+		then
+	then
+;
