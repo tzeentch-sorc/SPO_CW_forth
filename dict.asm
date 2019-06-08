@@ -215,6 +215,12 @@ native '@', data_read
 	mov rax, [rax]
 	push rax
 	jmp next
+
+native 'c@', fetch_char
+ 	pop rax
+ 	movzx rax, byte [rax]
+ 	push rax
+ 	jmp next
 	
 native '!', data_write
 	mov rax, rsp
@@ -225,6 +231,12 @@ native '!', data_write
 	pop rdx
 	mov [rax], rdx
 	jmp next
+
+native 'c!', write_char
+  pop rax
+  pop rdx
+  mov [rax], dl
+  jmp next	
 	
 native 'exit', close_int
 	jmp close
