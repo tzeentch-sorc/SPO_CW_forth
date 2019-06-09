@@ -1,21 +1,18 @@
 section .text
 str_length:
-	push rbx
-	mov rbx, rdi
 	xor rax, rax
-	.loop:
-	cmp byte[rbx + rax], 0
-	je .end
+.loop:
+	cmp byte [rdi+rax], 0
+	jz .end
 	inc rax
 	jmp .loop
-	
-	.end:
-	pop rbx
+.end:
 	ret
 
 print_str:
-	mov rsi, rdi
+	push rdi
 	call str_length
+	pop rsi
 	mov rdx, rax
 	mov rax, 1
 	mov rdi, 1
@@ -24,165 +21,247 @@ print_str:
 
 print_char:
 	push rdi
-	mov rax, 1
-	mov rdi, 1
 	mov rsi, rsp
+	mov rax, 1
 	mov rdx, 1
+	mov rdi, 1
 	syscall
 	pop rdi
 	ret
 
 print_newline:
-	mov rdi, 10
+    mov rdi, 0xA
 	call print_char
-	ret
+    ret
 
-print_uint:
-	mov r9, rsp
-
-	dec rsp
-	mov byte[rsp], 0
-	
-	mov r8, 10
-	mov rax, rdi
-	.loop:
-	xor rdx, rdx
-	div r8
-	add rdx, 48
-	dec rsp
-	mov byte[rsp], dl
-	test rax, rax
-	jnz .loop
-	mov rdi, rsp
-	call print_str
-	mov rsp, r9
-	ret
-	
 print_int:
-	and rdi, rdi
-	jns .unsigned
+    test rdi, rdi
+	jns .plus
+	jmp .minus
+.plus:
+	call print_uint
+    ret
+.minus:
 	push rdi
-	mov rdi, 45
+	mov rdi, '-'
 	call print_char
 	pop rdi
 	neg rdi
+	jmp .plus
 
-	.unsigned:
-	call print_uint
-	ret
-	
-str_equals:
-	push rdi
-	push rsi
-    xor rax, rax
-    xor r8, r8
-    xor r9, r9
-	.loop:
-	mov r8b, byte[rdi]
-	mov r9b, byte[rsi]
-	cmp r8, r9
-	jne .fail
-	inc rdi
-	inc rsi
-	test r8, r8
+print_uint:
+	mov rax, rdi
+	xor r8, r8
+	mov rbx, 10
+.loop:
+	xor rdx, rdx
+	div rbx
+	push rdx
+	inc r8
+	test rax, rax
 	jnz .loop
-	inc rax
-	
-	.fail:
-	pop rsi
-	pop rdi
+	mov rax, 1
+	mov rdx, 1
+	mov rdi, 1
+.print:
+	pop r10
+	add r10, '0'
+	push r10
+	mov rsi, rsp
+	syscall
+	pop r10
+	dec r8
+	test r8, r8
+	jnz .print
+	ret
+
+str_equals:
+    mov al, byte [rdi]
+    cmp al, byte [rsi]
+jne .fail
+    inc rdi
+    inc rsi
+    test al, al
+    jnz str_equals
+    mov rax, 1
+    ret
+.fail:
+    xor rax, rax
     ret
 
-read_char: 
-	push 0
+read_char:
 	xor rax, rax
-	xor rdi, rdi
+	push rax
+	mov rax, 0
 	mov rsi, rsp
+	mov rdi, 0
 	mov rdx, 1
 	syscall
-	mov al, byte[rsp]
-	pop rsi
+	pop rax
 	ret
-
-section .data
-	word_buffer times 256 db 0
 
 section .text
 
 read_word:
-	xor r8, r8
-	mov r8, word_buffer
-	.skip:
-	call read_char
-	test rax, rax
-	jz .end
-	cmp rax, 32
-	jle .skip
-	
-	.read_next:
-	mov [r8], rax
-	inc r8
-	call read_char
-	cmp rax,  32
-	jg .read_next
-	
-	.end:
-	mov rdi, word_buffer
-	call str_length
-	mov rdx, rax
-	mov rax, word_buffer
+    push r14
+    xor r14, r14 
+
+    .fst:
+    push rdi
+    call read_char
+    pop rdi
+    cmp al, ' '
+    je .fst
+    cmp al, 10
+    je .fst
+    cmp al, 13
+    je .fst 
+    cmp al, 9 
+    je .fst
+    test al, al
+    jz .third
+
+    .scnd:
+    mov byte [rdi + r14], al
+    inc r14
+
+    push rdi
+    call read_char
+    pop rdi
+    cmp al, ' '
+    je .third
+    cmp al, 10
+    je .third
+    cmp al, 13
+    je .third 
+    cmp al, 9
+    je .third
+    test al, al
+    jz .third
+    cmp r14, 254
+    je .third 
+
+    jmp .scnd
+
+    .third:
+    mov byte [rdi + r14], 0
+    mov rax, rdi 
+   
+    mov rdx, r14 
+    pop r14
     ret
 
 parse_uint:
-	push rdi
-    xor rax, rax
-    xor rdx, rdx
-    xor r10, r10
-    mov r8, 10
-	.loop:
-	cmp byte[rdi], 48
-	jl .end
-	cmp byte[rdi], 57
-	jg .end
-	inc r10
-	mul r8
 	xor r9, r9
-	mov r9b, byte[rdi]
-	sub r9, 48
-	add rax, r9
-	inc rdi
+	mov r9, 10d
+   	xor rax, rax
+	xor r8, r8
+	xor r11, r11
+.loop:
+	xor r10, r10
+	mov r10b, byte[rdi+r11]
+	inc r11
+.scndelow:
+	cmp r10b, '0'
+	jb .end
+.fstbove:
+	cmp r10b, '9'
+	ja .end
+.value:
+	sub r10b, '0'
+	mul r9
+	add rax, r10
+	inc r8
 	jmp .loop
-	
-	.end:
-	mov rdx, r10
-	pop rdi
-    ret
+.end:
+	mov rdx, r8
+	ret
 
 parse_int:
-    xor rax, rax
-    cmp byte[rdi], 45
-    je .sign
+	xor r8, r8
+	xor rax, rax
+	cmp byte [rdi], '-'
+	jz .minus
 	call parse_uint
 	ret
-	.sign:
-	inc rdi
+.minus:
+	lea rdi, [rdi+1]
 	call parse_uint
+	test rdx, rdx
+	jz .end
 	neg rax
 	inc rdx
-
-	.end:
-    ret 
-
-
-str_cpy:
-	push rcx
-	.loop:
-	xor rcx, rcx
-	mov cl, byte[rdi]
-	mov byte[rsi], cl
-	inc rdi
-	inc rsi
-	test rcx, rcx
-	jnz .loop
-	pop rcx
 	ret
+.end:
+	xor rdx, rdx
+	ret
+
+str_copy:
+    push rdi
+    push rsi
+    call str_length
+    xor r10, r10
+    xor r11, r11
+    pop rsi
+    pop rdi
+.loop:
+    cmp rax, r10
+    jae .thirdopy
+    jmp .end
+.thirdopy:
+    mov r11, [rdi+r10]
+    mov qword [rsi], r11
+    inc rsi
+    inc r10
+    jmp .loop
+.end:
+    ret
+
+print_not_found:
+    mov rdi, wb
+    call print_str
+    mov rdi, not_found
+    call print_str
+    ret
+
+; rdi <- word
+; w_word -> rax
+find_word:
+    mov rsi, [lw]
+
+    mov rax, [state]
+    test rax, rax
+    jz .loop
+    mov rsi, [rsi]
+.loop:
+    push rdi
+    push rsi
+
+    add rsi, 9
+    call str_equals
+
+    pop rsi
+    pop rdi
+
+    test rax, rax
+    jnz .found
+
+    mov rsi, [rsi]
+    test rsi, rsi
+    jnz .loop
+
+    xor rax, rax
+    ret
+.found:
+    mov rax, rsi
+    ret
+
+; rdi <- w_word
+; xt -> rax
+cfa:
+    add rdi, 9
+    call str_length
+    add rdi, rax
+    add rdi, 2
+    mov rax, rdi
+    ret
